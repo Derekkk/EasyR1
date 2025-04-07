@@ -30,6 +30,7 @@ from ..models.transformers.qwen2_vl import get_rope_index
 from . import torch_functional as VF
 
 
+
 def collate_fn(features: List[Dict[str, Any]]) -> Dict[str, Any]:
     tensors = defaultdict(list)
     non_tensors = defaultdict(list)
@@ -111,9 +112,9 @@ class RLHFDataset(Dataset, ImageProcessMixin):
             data_split = "train"
 
         if os.path.isdir(data_path):
-            self.dataset = load_dataset("parquet", data_dir=data_path, split="train")
+            self.dataset = load_dataset("parquet", data_dir=data_path, split="train[:10000]")
         elif os.path.isfile(data_path):
-            self.dataset = load_dataset("parquet", data_files=data_path, split="train")
+            self.dataset = load_dataset("parquet", data_files=data_path, split="train[:10000]")
         else:  # remote dataset
             self.dataset = load_dataset(data_path, split=data_split)
 
@@ -123,22 +124,34 @@ class RLHFDataset(Dataset, ImageProcessMixin):
     def __getitem__(self, index):
         row_dict: dict = self.dataset[index]
         prompt_str: str = row_dict[self.prompt_key]
-        if self.system_prompt:
-            prompt_str = " ".join((self.system_prompt.strip(), prompt_str))
-
+        prompt_str = prompt_str.replace("<image>", "").strip()
+        # if self.system_prompt:
+        #     prompt_str = " ".join((self.system_prompt.strip(), prompt_str))
         if self.image_key in row_dict:
             # https://huggingface.co/docs/transformers/en/tasks/image_text_to_text
-            content_list = []
-            for i, content in enumerate(prompt_str.split("<image>")):
-                if i != 0:
-                    content_list.append({"type": "image"})
-
-                if content:
-                    content_list.append({"type": "text", "text": content})
-
-            messages = [{"role": "user", "content": content_list}]
+            # content_list = []
+            # for i, content in enumerate(prompt_str.split("<image>")):
+            #     if i != 0:
+            #         content_list.append({"type": "image"})
+            #     if content:
+            #         content_list.append({"type": "text", "text": content})
+            content_list = [
+                {'type': 'image'},
+                {"type": "text", "text": prompt_str},
+            ]
+            if self.system_prompt:
+                messages = [
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": content_list}
+                    ]
+            else:
+                messages = [{"role": "user", "content": content_list}]
             prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
             images = [self.process_image(image) for image in row_dict.pop(self.image_key)]
+            images = None
+            if index == 0:
+                print(f"prompt: {[prompt]}")
+                print(f"images: {[images]}")
             model_inputs = self.processor(images, [prompt], add_special_tokens=False, return_tensors="pt")
             input_ids = model_inputs.pop("input_ids")[0]
             attention_mask = model_inputs.pop("attention_mask")[0]
@@ -153,9 +166,32 @@ class RLHFDataset(Dataset, ImageProcessMixin):
                 attention_mask=attention_mask,
             )  # (3, seq_length)
         else:
-            messages = [{"role": "user", "content": prompt_str}]
-            prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-            model_inputs = self.tokenizer([prompt], add_special_tokens=False, return_tensors="pt")
+            if self.system_prompt:
+                messages = [
+                    {"role": "system", "content": self.system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_str},
+                        ],
+                    }
+                ]
+            else:
+                messages = [
+                    {
+                        "role": "user", 
+                        "content": [
+                            {"type": "text", "text": prompt_str}
+                        ]
+                    }
+                ]
+            # prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+            # model_inputs = self.tokenizer([prompt], add_special_tokens=False, return_tensors="pt")
+            prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+            model_inputs = self.processor(text=[prompt], images=None, add_special_tokens=False, return_tensors="pt")
+            if index == 0:
+                print(f"prompt: {[prompt]}")
+            
             input_ids = model_inputs.pop("input_ids")[0]
             attention_mask = model_inputs.pop("attention_mask")[0]
             position_ids = torch.clip(attention_mask.cumsum(dim=0) - 1, min=0, max=None)  # (seq_length,)

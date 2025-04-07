@@ -36,17 +36,17 @@ class GenerationLogger(ABC):
 
 @dataclass
 class ConsoleGenerationLogger(GenerationLogger):
-    def log(self, samples: List[Tuple[str, str, float]], step: int) -> None:
-        for inp, out, score in samples:
-            print(f"[prompt] {inp}\n[output] {out}\n[score] {score}\n")
+    def log(self, samples: List[Tuple[str, str, float, str]], step: int) -> None:
+        for inp, out, score, soulution in samples:
+            print(f"[prompt] {[inp]}\n[output] {[out]}\n[score] {[score]}\n[ground_truth] {[soulution]}\n")
 
 
 @dataclass
 class WandbGenerationLogger(GenerationLogger):
-    def log(self, samples: List[Tuple[str, str, float]], step: int) -> None:
+    def log(self, samples: List[Tuple[str, str, float, str]], step: int) -> None:
         # Create column names for all samples
         columns = ["step"] + sum(
-            [[f"input_{i + 1}", f"output_{i + 1}", f"score_{i + 1}"] for i in range(len(samples))], []
+            [[f"input_{i + 1}", f"output_{i + 1}", f"score_{i + 1}", f"ground_truth_{i + 1}"] for i in range(len(samples))], []
         )
 
         if not hasattr(self, "validation_table"):
@@ -69,10 +69,10 @@ class WandbGenerationLogger(GenerationLogger):
 
 @dataclass
 class SwanlabGenerationLogger(GenerationLogger):
-    def log(self, samples: List[Tuple[str, str, float]], step: int) -> None:
+    def log(self, samples: List[Tuple[str, str, float, str]], step: int) -> None:
         swanlab_text_list = []
         for i, sample in enumerate(samples):
-            row_text = f"input: {sample[0]}\n\n---\n\noutput: {sample[1]}\n\n---\n\nscore: {sample[2]}"
+            row_text = f"input: {sample[0]}\n\n---\n\noutput: {sample[1]}\n\n---\n\nscore: {sample[2]}---\n\ground truth: {sample[3]}"
             swanlab_text_list.append(swanlab.Text(row_text, caption=f"sample {i + 1}"))
 
         swanlab.log({"val/generations": swanlab_text_list}, step=step)
@@ -94,6 +94,6 @@ class AggregateGenerationsLogger:
             if logger in GEN_LOGGERS:
                 self.loggers.append(GEN_LOGGERS[logger]())
 
-    def log(self, samples: List[Tuple[str, str, float]], step: int) -> None:
+    def log(self, samples: List[Tuple[str, str, float, str]], step: int) -> None:
         for logger in self.loggers:
             logger.log(samples, step)

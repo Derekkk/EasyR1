@@ -20,7 +20,7 @@ import torch
 from transformers import PreTrainedTokenizer
 
 from ...protocol import DataProto
-from ...utils.reward_score import math_compute_score, r1v_compute_score
+from ...utils.reward_score import math_compute_score, r1v_compute_score, mcq_compute_score
 
 
 class RewardScore(TypedDict):
@@ -36,6 +36,8 @@ class CustomRewardManager:
             self.compute_score: Callable[[str, str], RewardScore] = math_compute_score
         elif compute_score == "r1v":
             self.compute_score: Callable[[str, str], RewardScore] = r1v_compute_score
+        elif compute_score == "mcq":
+            self.compute_score: Callable[[str, str], RewardScore] = mcq_compute_score
         else:
             raise NotImplementedError()
 

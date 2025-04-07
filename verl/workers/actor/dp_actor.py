@@ -31,6 +31,7 @@ from ...utils.py_functional import append_to_dict
 from ...utils.ulysses import gather_outputs_and_unpad, ulysses_pad_and_slice_inputs
 from .base import BasePPOActor
 from .config import ActorConfig
+import random
 
 
 try:
@@ -198,8 +199,8 @@ class DataParallelPPOActor(BasePPOActor):
             self.config.micro_batch_size_per_device_for_experience
         )
         log_probs_lst = []
-        if self.rank == 0:
-            micro_batches = tqdm(micro_batches, desc="Compute log probs", position=2)
+        # if self.rank == 0:
+        #     micro_batches = tqdm(micro_batches, desc="Compute log probs", position=2)
 
         for micro_batch in micro_batches:
             model_inputs = {**micro_batch.batch, **micro_batch.non_tensor_batch}
@@ -225,21 +226,21 @@ class DataParallelPPOActor(BasePPOActor):
         # Split to make minibatch iterator for updating the actor
         # See PPO paper for details. https://arxiv.org/abs/1707.06347
         mini_batches = data.select(select_keys, non_tensor_select_keys).split(self.config.global_batch_size_per_device)
-
+        print(f"Number of mini_batches: {len(mini_batches)}, global_batch_size_per_device: {self.config.global_batch_size_per_device}")
         metrics = defaultdict(list)
         for _ in range(self.config.ppo_epochs):
-            if self.rank == 0:
-                mini_batches = tqdm(mini_batches, desc="Train mini-batches", position=2)
+            # if self.rank == 0:
+            #     mini_batches = tqdm(mini_batches, desc="Train mini-batches", position=2)
 
             for mini_batch in mini_batches:
                 gradient_accumulation = (
                     self.config.global_batch_size_per_device // self.config.micro_batch_size_per_device_for_update
                 )
                 micro_batches = mini_batch.split(self.config.micro_batch_size_per_device_for_update)
-                if self.rank == 0:
-                    micro_batches = tqdm(micro_batches, desc="Update policy", position=3)
-
-                for micro_batch in micro_batches:
+                # if self.rank == 0:
+                #     micro_batches = tqdm(micro_batches, desc="Update policy", position=3)
+                print(f"Update policy with {len(micro_batches)} micro batches")
+                for micro_batch_idx, micro_batch in enumerate(micro_batches):
                     model_inputs = {**micro_batch.batch, **micro_batch.non_tensor_batch}
                     responses = model_inputs["responses"]
                     response_length = responses.size(1)
@@ -280,6 +281,8 @@ class DataParallelPPOActor(BasePPOActor):
                         "actor/ppo_kl": ppo_kl.detach().item(),
                     }
                     append_to_dict(metrics, batch_metrics)
+                    if self.rank == 0 and micro_batch_idx % 5 == 0:
+                        print(f"- Current Step {micro_batch_idx}, batch_metrics: {batch_metrics}")
 
                 grad_norm = self._optimizer_step()
                 append_to_dict(metrics, {"actor/grad_norm": grad_norm.detach().item()})

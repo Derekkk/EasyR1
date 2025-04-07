@@ -287,6 +287,8 @@ class RayPPOTrainer:
             pin_memory=False,
             drop_last=True,
         )
+        print(f"Size of train_dataset: {len(self.train_dataset)}\n Train data file: {self.config.data.train_files}")
+        print(self.train_dataset[0])
 
         self.val_dataset = RLHFDataset(
             data_path=self.config.data.val_files,
@@ -301,6 +303,8 @@ class RayPPOTrainer:
             min_pixels=self.config.data.min_pixels,
             max_pixels=self.config.data.max_pixels,
         )
+        print(f"Size of val_dataset: {len(self.val_dataset)}\n Val data file: {self.config.data.val_files}")
+        print(self.train_dataset[0])
         self.val_dataloader = StatefulDataLoader(
             dataset=self.val_dataset,
             batch_size=len(self.val_dataset)
@@ -328,13 +332,13 @@ class RayPPOTrainer:
         self.config.worker.critic.optim.training_steps = training_steps
         print(f"Total training steps: {self.training_steps}")
 
-    def _maybe_log_val_generations(self, inputs: List[str], outputs: List[str], scores: List[float]) -> None:
+    def _maybe_log_val_generations(self, inputs: List[str], outputs: List[str], scores: List[float], solutions: List[str]) -> None:
         """Log a table of validation samples"""
         if self.config.trainer.val_generations_to_log <= 0:
             return
 
         # Create tuples of (input, output, score) and sort by input text
-        samples = list(zip(inputs, outputs, scores))
+        samples = list(zip(inputs, outputs, scores, solutions))
         samples.sort(key=lambda x: x[0])  # Sort by input text
 
         # Use fixed random seed for deterministic shuffling
@@ -342,12 +346,17 @@ class RayPPOTrainer:
         rng.shuffle(samples)
 
         samples = samples[: self.config.trainer.val_generations_to_log]
+        # print("========== Validation Samples ==========")
+        # for i, cur_sample in enumerate(samples):
+        #     print(f"Sample {i + 1}:")
+        #     print(cur_sample)
+        #     print("=======================================")
         self.logger.log_generation(samples, self.global_step)
 
     def _validate(self) -> Dict[str, Any]:
         reward_tensor_lst = []
         # Lists to collect samples for the table
-        sample_inputs, sample_outputs, sample_scores = [], [], []
+        sample_inputs, sample_outputs, sample_scores, solutions = [], [], [], []
         reward_metrics_lst = defaultdict(list)
         for test_data in self.val_dataloader:
             test_batch = DataProto.from_single_dict(test_data)
@@ -355,6 +364,8 @@ class RayPPOTrainer:
             input_ids = test_batch.batch["input_ids"]
             input_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in input_ids]
             sample_inputs.extend(input_texts)
+            sample_ground_truth = test_batch.non_tensor_batch["ground_truth"]
+            solutions.extend(sample_ground_truth)
 
             if "multi_modal_inputs" in test_batch.non_tensor_batch.keys():
                 test_gen_batch = test_batch.pop(
@@ -391,7 +402,7 @@ class RayPPOTrainer:
             for key, value in reward_metrics.items():
                 reward_metrics_lst[key].extend(value)
 
-        self._maybe_log_val_generations(inputs=sample_inputs, outputs=sample_outputs, scores=sample_scores)
+        self._maybe_log_val_generations(inputs=sample_inputs, outputs=sample_outputs, scores=sample_scores, solutions=solutions)
         reward_score = torch.cat(reward_tensor_lst, dim=0).sum(-1).mean().item()
         val_reward_metrics = {f"val/{key}_reward": value for key, value in reduce_metrics(reward_metrics_lst).items()}
         return {"val/reward_score": reward_score, **val_reward_metrics}
@@ -547,15 +558,22 @@ class RayPPOTrainer:
             if self.config.trainer.val_only:
                 return
 
-        for _ in tqdm(range(self.config.trainer.total_episodes), desc="Episode", position=0):
-            for batch_dict in tqdm(self.train_dataloader, desc="Running step", position=1):
+        # for _ in tqdm(range(self.config.trainer.total_episodes), desc="Episode", position=0):
+        for _ in range(self.config.trainer.total_episodes):
+            print("\n" + f"===" * 10)
+            print(f"Training Episode {_}.")
+            print(f"===" * 10 + "\n")
+            # for batch_dict in tqdm(self.train_dataloader, desc="Running step", position=1):
+            for batch_dict in self.train_dataloader:
                 self.global_step += 1
                 if self.global_step > self.training_steps:
                     break
 
                 metrics, timing_raw = {}, {}
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
-
+                print("\n" + f"---" * 6)
+                print(f"Step {self.global_step}; batch size: {len(batch)}")
+                print("\n" + f"---" * 6)
                 # pop those keys for generation
                 if "multi_modal_inputs" in batch.non_tensor_batch.keys():
                     gen_batch = batch.pop(
@@ -567,11 +585,12 @@ class RayPPOTrainer:
                         batch_keys=["input_ids", "attention_mask", "position_ids"],
                         non_tensor_batch_keys=["raw_prompt_ids"],
                     )
-
+                print(f"[gen batch size]: {len(gen_batch)}")
                 with _timer("step", timing_raw):
                     # generate a batch
                     with _timer("gen", timing_raw):  # wg: worker group
                         gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+                        print(f"gen_batch_output: {len(gen_batch_output)}")
 
                     if self.config.algorithm.adv_estimator == "remax":
                         with _timer("gen_max", timing_raw):
@@ -662,7 +681,6 @@ class RayPPOTrainer:
                     if self.config.trainer.critic_warmup <= self.global_step:
                         with _timer("update_actor", timing_raw):
                             actor_output = self.actor_rollout_wg.update_actor(batch)
-
                         actor_metrics = reduce_metrics(actor_output.non_tensor_batch)
                         metrics.update(actor_metrics)
 
