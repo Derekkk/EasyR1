@@ -1,5 +1,7 @@
 # EasyR1: An Efficient, Scalable, Multi-Modality RL Training Framework
 
+Note: This is a modified version of EasyR1.
+
 [![GitHub Repo stars](https://img.shields.io/github/stars/hiyouga/EasyR1)](https://github.com/hiyouga/EasyR1/stargazers)
 [![Twitter](https://img.shields.io/twitter/follow/llamafactory_ai)](https://twitter.com/llamafactory_ai)
 
