@@ -11,7 +11,7 @@ python3 -m verl.trainer.main \
     config=examples/config.yaml \
     data.train_files=leonardPKU/GEOQA_8K_R1V@train \
     data.val_files=leonardPKU/GEOQA_8K_R1V@test \
-    data.image_key=image \
+    data.image_key=images \
     data.system_prompt="${SYSTEM_PROMPT}" \
     worker.actor.model.model_path=${MODEL_PATH} \
     worker.rollout.tensor_parallel_size=1 \

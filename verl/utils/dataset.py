@@ -148,8 +148,8 @@ class RLHFDataset(Dataset, ImageProcessMixin):
                 messages = [{"role": "user", "content": content_list}]
             prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
             images = [self.process_image(image) for image in row_dict.pop(self.image_key)]
-            images = None
             if index == 0:
+                print("=====Sample VLM data=====")
                 print(f"prompt: {[prompt]}")
                 print(f"images: {[images]}")
             model_inputs = self.processor(images, [prompt], add_special_tokens=False, return_tensors="pt")
@@ -190,6 +190,7 @@ class RLHFDataset(Dataset, ImageProcessMixin):
             prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
             model_inputs = self.processor(text=[prompt], images=None, add_special_tokens=False, return_tensors="pt")
             if index == 0:
+                print("=====Sample Textual Data=====")
                 print(f"prompt: {[prompt]}")
             
             input_ids = model_inputs.pop("input_ids")[0]
