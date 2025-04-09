@@ -281,7 +281,7 @@ class DataParallelPPOActor(BasePPOActor):
                         "actor/ppo_kl": ppo_kl.detach().item(),
                     }
                     append_to_dict(metrics, batch_metrics)
-                    if self.rank == 0 and micro_batch_idx % 5 == 0:
+                    if self.rank == 0 and micro_batch_idx % 20 == 0:
                         print(f"- Current Step {micro_batch_idx}, batch_metrics: {batch_metrics}")
 
                 grad_norm = self._optimizer_step()

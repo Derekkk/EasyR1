@@ -94,6 +94,28 @@ def format_reward(predict_str: str) -> float:
     return 1.0 if match else 0.0
 
 
+def yes_no_reward(content, sol, **kwargs):
+    content = content.lower()
+    sol = sol.lower()
+
+    # Extract answer from solution if it has think/answer tags
+    sol_match = re.search(r'<answer>(.*?)</answer>', sol)
+    ground_truth = sol_match.group(1).strip() if sol_match else sol.strip()
+
+    # Extract answer from content if it has think/answer tags
+    content_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+    student_answer = content_match.group(1).strip() if content_match else content.strip()
+
+    ground_yes_no = re.search(r'(yes|no)', ground_truth)
+    ground_yes_no = ground_yes_no.group(1) if ground_yes_no else ''
+    student_yes_no = re.search(r'(yes|no)', student_answer)
+    student_yes_no = student_yes_no.group(1) if student_yes_no else ''
+
+    reward = 1.0 if ground_yes_no == student_yes_no else 0.0
+
+    return reward
+
+
 def tag_count_reward(predict_str) -> float:
     """Reward function that checks if we produce the desired number of think and answer tags associated with `format_reward()`.
 
@@ -130,7 +152,10 @@ def math_acc_reward(predict_str: str, ground_truth: str) -> float:
 def mcq_compute_score(predict_str: str, ground_truth: str) -> Dict[str, float]:
     format = format_reward(predict_str)
     tag_count_reward_value = tag_count_reward(predict_str)
-    accuracy = mcq_reward_one(predict_str, ground_truth)
+    if "yes" in ground_truth.lower() or "no" in ground_truth.lower():
+        accuracy = yes_no_reward(predict_str, ground_truth)
+    else:
+        accuracy = mcq_reward_one(predict_str, ground_truth)
     return {
         "overall": 0.35 * accuracy + 0.35 * format + 0.3 * tag_count_reward_value,
         "format": format,
