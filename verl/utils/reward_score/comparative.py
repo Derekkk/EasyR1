@@ -184,7 +184,7 @@ def r1v_accuracy_reward(predict_str: str, ground_truth: str) -> float:
     return 0.0
 
 
-def mcq_compute_score(predict_str: str, ground_truth: str) -> Dict[str, float]:
+def comparative_compute_score(predict_str: str, ground_truth: str) -> Dict[str, float]:
     format = format_reward(predict_str)
     tag_count_reward_value = tag_count_reward(predict_str)
     if "yes" in ground_truth.lower() or "no" in ground_truth.lower():
