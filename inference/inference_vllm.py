@@ -3,7 +3,7 @@ from vllm import LLM, SamplingParams
 from qwen_vl_utils import process_vision_info
 
 
-MODEL_PATH = "../checkpoints/easy_r1/huggingface/qwen2_5_vl_3b_GEOQA_8K_R1V_step25_hf"
+MODEL_PATH = "../checkpoints/easy_r1/qwen2_5_vl_3b_GEOQA_8K_R1V/qwen2_5_vl_3b_GEOQA_8K_step70_hf"
 
 llm = LLM(
     model=MODEL_PATH,

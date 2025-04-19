@@ -115,6 +115,27 @@ def yes_no_reward(content, sol, **kwargs):
 
     return reward
 
+def left_right_reward(content, sol, **kwargs):
+    content = content.lower()
+    sol = sol.lower()
+
+    # Extract answer from solution if it has think/answer tags
+    sol_match = re.search(r'<answer>(.*?)</answer>', sol)
+    ground_truth = sol_match.group(1).strip() if sol_match else sol.strip()
+
+    # Extract answer from content if it has think/answer tags
+    content_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+    student_answer = content_match.group(1).strip() if content_match else content.strip()
+
+    ground_yes_no = re.search(r'(left|right)', ground_truth)
+    ground_yes_no = ground_yes_no.group(1) if ground_yes_no else ''
+    student_yes_no = re.search(r'(left|right)', student_answer)
+    student_yes_no = student_yes_no.group(1) if student_yes_no else ''
+
+    reward = 1.0 if ground_yes_no == student_yes_no else 0.0
+
+    return reward
+
 
 def tag_count_reward(predict_str) -> float:
     """Reward function that checks if we produce the desired number of think and answer tags associated with `format_reward()`.
@@ -149,15 +170,33 @@ def math_acc_reward(predict_str: str, ground_truth: str) -> float:
     return 1.0 if grade_answer(answer, ground_truth) else 0.0
 
 
+def r1v_accuracy_reward(predict_str: str, ground_truth: str) -> float:
+    try:
+        ground_truth = ground_truth.strip()
+        content_match = re.search(r"<answer>(.*?)</answer>", predict_str)
+        given_answer = content_match.group(1).strip() if content_match else predict_str.strip()
+        if grade_answer(given_answer, ground_truth):
+            return 1.0
+
+    except Exception:
+        pass
+
+    return 0.0
+
+
 def mcq_compute_score(predict_str: str, ground_truth: str) -> Dict[str, float]:
     format = format_reward(predict_str)
     tag_count_reward_value = tag_count_reward(predict_str)
     if "yes" in ground_truth.lower() or "no" in ground_truth.lower():
         accuracy = yes_no_reward(predict_str, ground_truth)
-    else:
+    elif "left" in ground_truth.lower() or "right" in ground_truth.lower():
+        accuracy = left_right_reward(predict_str, ground_truth)
+    elif len(ground_truth.strip()) == 1 and ground_truth.strip().lower() in ["a", "b", "c", "d", "e", "f"]:
         accuracy = mcq_reward_one(predict_str, ground_truth)
+    else:
+        accuracy = r1v_accuracy_reward(predict_str, ground_truth)
     return {
-        "overall": 0.35 * accuracy + 0.35 * format + 0.3 * tag_count_reward_value,
+        "overall": 1 * accuracy + 1 * format + 0.5 * tag_count_reward_value,
         "format": format,
         "accuracy": accuracy,
         "tag_count": tag_count_reward_value

@@ -21,7 +21,7 @@ from math_verify import ExprExtractionConfig, LatexExtractionConfig, StringExtra
 
 
 
-choices = ["a", "b", "c", "d"]
+choices = ["a", "b", "c", "d", "e"]
 problem_pattern = r"<\|im_start\|>user\n(.*?)<\|im_end\|>"
 response_prefix = r"<\|im_start\|>assistant\n"
 

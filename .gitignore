@@ -174,4 +174,5 @@ cython_debug/
 outputs/
 checkpoints/
 wandb/
-logs
+logs/
+processed_data/

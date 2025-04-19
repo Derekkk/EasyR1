@@ -10,13 +10,14 @@ SYSTEM_PROMPT="""You are a helpful AI Assistant, designed to provided well-reaso
 
 python3 -m verl.trainer.main \
     config=examples/config.yaml \
-    data.train_files=/home/huzhe/workspace/data/NaturalBench/processed_data@train \
-    data.val_files=/home/huzhe/workspace/data/NaturalBench/processed_data@test \
+    data.train_files=/home/huzhe/workspace/data/comparative_reasoning/humor_comparative_combined@train \
+    data.val_files=/home/huzhe/workspace/data/comparative_reasoning/humor_comparative_combined@test \
     data.image_key=images \
+    ata.prompt_key=question \
     data.system_prompt="${SYSTEM_PROMPT}" \
     worker.actor.model.model_path=${MODEL_PATH} \
     worker.rollout.tensor_parallel_size=1 \
     worker.rollout.enable_chunked_prefill=false \
-    trainer.experiment_name=qwen2_5_vl_3b_GEOQA_8K_R1V_naturalbench \
+    trainer.experiment_name=qwen2_5_vl_3b_GEOQA_8K_humor_comparative \
     worker.reward.compute_score=mcq \
     trainer.n_gpus_per_node=1

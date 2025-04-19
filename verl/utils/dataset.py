@@ -128,17 +128,11 @@ class RLHFDataset(Dataset, ImageProcessMixin):
         # if self.system_prompt:
         #     prompt_str = " ".join((self.system_prompt.strip(), prompt_str))
         if self.image_key in row_dict:
-            # https://huggingface.co/docs/transformers/en/tasks/image_text_to_text
-            # content_list = []
-            # for i, content in enumerate(prompt_str.split("<image>")):
-            #     if i != 0:
-            #         content_list.append({"type": "image"})
-            #     if content:
-            #         content_list.append({"type": "text", "text": content})
-            content_list = [
-                {'type': 'image'},
-                {"type": "text", "text": prompt_str},
-            ]
+            content_list = []
+            for image in row_dict[self.image_key]:
+                content_list.append({'type': 'image'})
+            content_list.append({"type": "text", "text": prompt_str})
+
             if self.system_prompt:
                 messages = [
                     {"role": "system", "content": self.system_prompt},

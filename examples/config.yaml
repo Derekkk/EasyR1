@@ -71,7 +71,7 @@ worker:
     compute_score: mcq
 
 trainer:
-  total_episodes: 10
+  total_episodes: 15
   logger: ["console", "wandb"]
   project_name: easy_r1
   experiment_name: qwen2_5_7b_math_grpo
@@ -80,7 +80,7 @@ trainer:
   val_freq: 5  # -1 to disable
   val_before_train: true
   val_only: false
-  val_generations_to_log: 5
+  val_generations_to_log: 10
   save_freq: 5  # -1 to disable
   save_limit: 3  # -1 to disable
   save_checkpoint_path: null
