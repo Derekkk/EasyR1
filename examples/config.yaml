@@ -24,7 +24,7 @@ worker:
   actor:
     global_batch_size: 128
     micro_batch_size_per_device_for_update: 2
-    micro_batch_size_per_device_for_experience: 8
+    micro_batch_size_per_device_for_experience: 4
     max_grad_norm: 1.0
     padding_free: true
     ulysses_sequence_parallel_size: 1
@@ -49,7 +49,7 @@ worker:
   rollout:
     temperature: 1.0
     n: 5
-    gpu_memory_utilization: 0.6
+    gpu_memory_utilization: 0.7
     enforce_eager: false
     enable_chunked_prefill: false
     tensor_parallel_size: 2

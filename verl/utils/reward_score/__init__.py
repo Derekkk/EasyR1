@@ -16,5 +16,6 @@
 from .math import math_compute_score
 from .r1v import r1v_compute_score
 from .mcq import mcq_compute_score
+from .comparative import comparative_compute_score
 
-__all__ = ["math_compute_score", "r1v_compute_score", "mcq_compute_score"]
+__all__ = ["math_compute_score", "r1v_compute_score", "mcq_compute_score", "comparative_compute_score"]
